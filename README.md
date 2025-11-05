@@ -8,6 +8,8 @@ A terminal-based Snake game built with C++ featuring cross-platform compatibilit
 
 ### Getting Started
 
+Follow the install steps below for your OS, then run the compiled binary from a terminal in this folder. A `game_highest.txt` file will be created beside the executable to persist your best score.
+
 ### Game Screenshots
 
 **Start Screen**
@@ -36,18 +38,22 @@ Clean exit message displayed when you quit the game.
 #### Installation
 
 **Windows:**
-1. Download or compile the executable
-2. Compile: `g++ -std=c++20  main.cpp -o main.exe`
-3. Run `main.exe` from Command Prompt
+1. Install MinGW-w64 (or use MSYS2) with `g++` supporting C++20
+2. Compile:
+   - `g++ -std=c++20 main.cpp -o main.exe`
+3. Run:
+   - `main.exe` (or directly run this on command prompt (might get older version))
 
 **Linux/macOS:**
-1. Ensure you have a C++ compiler installed (`g++`)
-2. Compile: `g++ -std=c++20  main.cpp -o snake_game`
-3. Run: `./snake_game`
+1. Ensure you have `g++` installed
+2. Compile:
+   - `g++ -std=c++20 main.cpp -o snake_game`  
+3. Run:
+   - `./snake_game`
 
 ### How to Play
 
-Navigate your snake around the board, eat the food (marked with `*`), and grow longer. Avoid hitting walls, other snakes, or yourself!
+Navigate your snake around the board, eat the food (marked with `*`), and grow longer. Avoid hitting walls or yourself!
 
 **Goal:** Eat as much food as possible to increase your score and beat your personal high score.
 
@@ -100,6 +106,10 @@ The core game engine using **immutable state snapshots** and **atomic operations
 - `update()`: Game loop tick—reads input, moves snake, checks collisions, publishes state
 - `getGameState()`: Lock-free read of current game state (safe for render thread)
 
+Additional details:
+- State is published via atomic store with `memory_order_release` and read with `memory_order_acquire` to ensure visibility without locks.
+- `initializeBoard()` seeds the RNG and places the initial snake centered with direction-based body placement.
+
 #### 2. **Platform Abstraction (`main.cpp` - TerminalController)**
 Handles all platform-specific terminal operations with unified API.
 
@@ -131,6 +141,9 @@ Handles visual output and user input processing.
 - Supports both arrow keys and WASD input
 - `pollInput()`: Non-blocking input polling
 
+Notes:
+- Arrow keys on Windows use the `_getch()` extended key prefix; on POSIX, a short ESC sequence timeout is used for reliability.
+
 ### Tech Stack & Design Choices
 
 | Technology | Rationale |
@@ -145,7 +158,48 @@ Handles visual output and user input processing.
 ### Cross-Platform Compatibility
 
 **Supported Platforms:**
-- ✅ **Windows 7+** (using Windows Console API)
-- ✅ **Linux** (tested on Ubuntu 20.04+, Fedora, Debian)
-- ✅ **macOS** (using standard POSIX termios)
+- ✅ **Windows 7+** 
+- ✅ **Linux** 
+
+### Build & Run (Developer)
+
+All source lives in the repo root for now:
+
+```
+.
+├─ main.cpp          # Entry point: terminal UI, renderer, input, loop
+└─ gameLogic.h       # Core game logic + immutable GameState snapshots
+```
+
+Commands:
+- Windows (MinGW-w64):
+  - `g++ -std=c++20 main.cpp -o main.exe`
+  - Run with `main.exe`
+- Linux/macOS:
+  - `g++ -std=c++20 main.cpp -o snake_game`  
+  - Run with `./snake_game`
+
+Binary creates/reads `game_highest.txt` in the working directory for persistent high score.
+
+### Contribution Guidelines
+
+1. Fork and create a feature branch from `main`.
+2. Keep edits focused; prefer small, cohesive changes.
+3. Follow the code style and layout below.
+4. Test on at least one platform (Windows or Linux/macOS). If you change terminal I/O, please sanity-test both.
+5. Open a PR with a clear description, screenshots if UI/behavior changes, and build/run notes.
+
+### Coding Style
+
+- C++20, no exceptions unless necessary; avoid unnecessary try/catch.
+- Use descriptive names; avoid cryptic abbreviations.
+- Keep comments minimal and meaningful (non-obvious rationale, edge cases).
+- Preserve existing indentation and formatting.
+
+### Adding Features Safely
+
+- New gameplay options (speed, board size, walls): expose config near `runGame()` in `main.cpp` and thread through to `initializeBoard()`.
+- New cell types: extend `CellType` in `gameLogic.h`, update transitions in `update()`, and render mapping in `GameRenderer::updateGameBoard()`.
+- Input changes: update `InputHandler::pollInput()` on both code paths (Windows and POSIX).
+- Rendering changes: prefer buffering lines (as done) and a single flush per frame to avoid flicker.
 
